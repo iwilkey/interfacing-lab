@@ -26,12 +26,9 @@
 enum IOType {
 	LEDS,
 	BUTTONS,
-	PIB, // PINB
-	PIC, // PINC
-	PID, // PIND
-	PORB, // PORTB
-	PORC, // PORTC
-	PORD // PORTD
+	B, // PINB or PORTB
+	C, // PINC or PORTC
+	D // PIND or PORTD
 };
 
 // IO utilities...
@@ -42,10 +39,14 @@ void setStateOf(enum IOType type, uint8_t value);
 void delayMS(unsigned short int ms);
 
 // Inline logical utilities...
-inline uint8_t getChangeBetween(uint8_t first, uint8_t second, uint8_t mask) { return ((first ^ second) & second & mask); }
-inline uint8_t getToggledBitWith(uint8_t first, uint8_t second) { return first ^ second; }
+inline uint8_t getChangeBetween(uint8_t first, uint8_t second, uint8_t mask) { 
+	return ((first ^ second) & second & mask); 
+}
+inline uint8_t getToggledBitWith(uint8_t first, uint8_t second) { 
+	return first ^ second; 
+}
 
-void init(void);
+void begin(void);
 void dispose(void);
 
 #endif // _HAL_AVR_H_

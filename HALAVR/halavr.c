@@ -14,9 +14,9 @@
 
 uint8_t getStateOf(enum IOType type) {
 	switch(type) {
-		case PIB: return PINB; break;
-		case PIC: return PINC; break;
-		case PID: return PIND; break;
+		case B: return PINB; break;
+		case C: return PINC; break;
+		case D: return PIND; break;
 		case LEDS: return (PINB & 0b00111111); break;
 		case BUTTONS: return (((~PIND) >> 4) & 0x0F); break;
 		default: break;
@@ -26,9 +26,9 @@ uint8_t getStateOf(enum IOType type) {
 
 void setStateOf(enum IOType type, uint8_t value) {
 	switch(type) {
-		case PORB: PORTB &= value; break;
-		case PORC: PORTC &= value; break;
-		case PORD: PORTD &= value; break;
+		case B: PORTB &= value; break;
+		case C: PORTC &= value; break;
+		case D: PORTD &= value; break;
 		case LEDS: PORTB = ((PORTB & 0b11000000) | (value & 0b00111111)); break;
 		case BUTTONS: break;
 		default: break;
@@ -45,7 +45,7 @@ void delayMS(unsigned short int ms) {
 	return;
 }
 
-void init(void) {
+void begin(void) {
 	DDRD = DDRD & 0x0F;
 	PORTD = PORTD | 0x0F;
 	DDRB = DDRB | 0b00111111;
