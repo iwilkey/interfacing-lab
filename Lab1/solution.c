@@ -1,4 +1,17 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @file ECE-322/Lab1/solution.c
+/// @brief This embedded C program operates to satisfy the requirements of ECE 322 Lab 1.
+/// @authors Ian Wilkey, Andrew Kamp, Rachel Gottschalk
+/// @date 9/2022
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef _ECE_322_LAB_1_SOLUTION_C_
+#define _ECE_322_LAB_1_SOLUTION_C_
+
+// Include required libraries...
 #include <avr/io.h>
+
+// Hardware abstraction libraries created by Dr. Mali...
 #include "library.h"
 #include "bios_leds.h"
 
@@ -59,3 +72,5 @@ int main(void) {
 	// checkpointC();
 	// checkpointD();
 }
+
+#endif // _ECE_322_LAB_1_SOLUTION_C_

@@ -1,5 +1,18 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @file ECE-322/Lab3/solution.c
+/// @brief This embedded C program operates to satisfy the requirements of ECE 322 Lab 3.
+/// @authors Ian Wilkey, Andrew Kamp, Rachel Gottschalk
+/// @date 9/2022
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef _ECE_322_LAB_3_SOLUTION_C_
+#define _ECE_322_LAB_3_SOLUTION_C_
+
+// Include required libraries...
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
+// Hardware abstraction libraries created by Dr. Mali...
 #include "bios_kpads.h"
 #include "bios_leds.h"
 
@@ -51,10 +64,13 @@ int main(void) {
 	init();
 	sei();
 	while(1) {}
-    return(0);
+    return 0;
 }
 
+// Pin change PORTC interrupt ISR...
 ISR(PCINT1_vect) {
 	leds_set(0b00010000 | getkey());
 	leds_set(leds_get() & 0b11101111);
 }
+
+#endif // _ECE_322_LAB_3_SOLUTION_C_
