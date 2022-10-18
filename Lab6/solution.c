@@ -6,8 +6,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // >>> NOTE FOR GRADER <<<
-// This is a complete refactoring of Dr. Mali's LCD library shell, but all functionality is kept.
-// In some cases, it is even more efficient and practical.
+// This is a complete refactoring of Dr. Mali's LCD library shell, 
+// but all functionality is kept.
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -28,7 +28,7 @@ typedef enum {
     LCD_DATA_REGISTER = 1
 } lcdRegister_t;
 
-// Prototypes. As you can see, all of Mali's required functionality is present.
+// LCD Prototypes. As you can see, all of Mali's required functionality is present.
 void lcdPutNibble(lcdRegister_t reg, uint8_t data);
 uint8_t lcdGetDataNibble(void);
 void lcdInit(void);
@@ -40,6 +40,51 @@ void lcdHome(void);
 void lcdCursor(bool verdict);
 void lcdSetCursorXY(uint8_t x, uint8_t y);
 void lcdWait(void);
+// ADC Prototypes...
+void adcInit(void);
+void adcSelectChannel(uint8_t channel);
+uint8_t adcGet8b(void);
+uint16_t adcGet10b(void);
+// Various utilities
+char * u16bts(uint16_t num, char buffer[]);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// ADC Functionality...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void adcInit(void) {
+    // Set ADC clock to 125kHz...
+    ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); 
+    // For now let us use the very 1st channel!
+    ADMUX = 0;
+    // Use VCC as Vref...
+    ADMUX |= (1 << REFS0);
+    // Left justify the result so that 8bits can be read from the high register...
+    ADMUX |= (1 << ADLAR);
+    // Start ADC...
+    ADCSRA |= (1 << ADEN);
+}
+
+void adcSelectChannel(uint8_t channel) {
+    ADMUX = (ADMUX & 0xE0) | (0x1F & channel);
+}
+
+uint8_t adcGet8b(void) {
+    // Start conversion...
+    ADCSRA |= (1 << ADSC);
+    // Wait until the conversion is complete...
+    while(!(ADCSRA & (1 << ADIF)));
+    return ADCH;
+}
+
+uint16_t adcGet10b(void) {
+    ADCSRA |= (1 << ADSC);
+    while(!(ADCSRA & (1 << ADIF)));
+    return ADC;    
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// LCD Functionality...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Send data to the LCD from the microcontroller...
 void lcdPutNibble(lcdRegister_t reg, uint8_t data) {
@@ -154,7 +199,8 @@ inline void lcdHome(void) {
 
 void lcdPutString(const char * str) {
     while(*str != '\0') {
-        lcdPutChar(*str);
+        if(*str != '-') 
+            lcdPutChar(*str);
         ++str;
     }
 }
@@ -194,8 +240,29 @@ void lcdInit(void) {
     lcdHome();
 }
 
+// Unsigned 16 bit integer to string...
+char * u16bts(uint16_t num, char buffer[]) {
+    for(int i = 4; i >= 0; i--) {
+        buffer[i] = (num % 10) + '0';
+        num /= 10;
+    }
+    // Get rid of leading zeros...
+    for(int i = 0; i <= 4; i++) {
+        if(buffer[i] != '0') break;
+        buffer[i] = '-';
+    }
+    return buffer;
+}
+
 int main(void) {
+    adcInit();
+    adcSelectChannel(4);
     lcdInit();
-    while(true);
+    static char numBuffer[5] = { '-' };
+    while(true) {
+        lcdClear();
+        lcdPutString(u16bts(adcGet10b(), numBuffer));
+        _delay_ms(25);
+    }
     return 0;
 }

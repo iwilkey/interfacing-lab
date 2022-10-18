@@ -5,8 +5,8 @@ if [ "$#" -ne 2 ]; then
     exit
 fi
 
-if [ ! -f "$1/main.c" ]; then
-    echo "The specified project's entry point (/main.c) could not be found!"
+if [ ! -f "$1/solution.c" ]; then
+    echo "The specified project's entry point (/solution.c) could not be found!"
     exit
 fi
 
@@ -19,7 +19,7 @@ fi
 mkdir build && cd build
 
 echo "$(tput setaf 3)Compiling..."
-avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o main.o ../main.c
+avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o main.o ../solution.c
 
 echo "$(tput setaf 4)Linking binary to ATmega328P libraries..."
 avr-gcc -mmcu=atmega328p main.o -o main
@@ -28,6 +28,6 @@ echo "$(tput setaf 5)Converting linked binaries to hexadecimal for EEPROM..."
 avr-objcopy -O ihex -R .eeprom main main.hex
 
 echo "$(tput setaf 6)Flashing microcontroller...$(tput setaf 7)"
-avrdude -F -V -c arduino -p ATMEGA328P -P /dev/cu.usbmodem$2 -b 115200 -U flash:w:main.hex
+avrdude -F -V -c arduino -p ATMEGA328P -P /dev/cu.usbserial-$2 -b 115200 -U flash:w:main.hex
 
 echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo
