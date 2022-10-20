@@ -6,5 +6,7 @@
 * $ ./flash [directory-name]
 
 Example: Flashing "Lab6" to the microcontroller. Assuming it is plugged in and all code in "Lab6/solution.c" is correct...
-$ cd ECE-322
-$ ./flash Lab6
+
+```console
+iwilkey@Ians-MacBook-Air ECE-322 % ./flash Lab6
+```
