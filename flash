@@ -1,14 +1,14 @@
 #!/bin/bash
 
-if [ "$#" -ne 2 ]; then
-    echo "$(tput setaf 1)Illegal number of parameters! Usage: $(tput setaf 3)$ ./program.sh [project-directory] [device-serial-number]$(tput setaf 7)"
+if [ "$#" -ne 1 ]; then
+    echo "$(tput setaf 1)Illegal number of parameters! Usage: $(tput setaf 3)$ ./program.sh [project-directory]$(tput setaf 7)"
     exit
 fi
 
 if [ ! -f "$1/solution.c" ]; then
-    echo "The specified project's entry point (/solution.c) could not be found!"
+    echo "The specified project's entry point (./[project-dir]/solution.c) could not be found!"
     exit
-fi
+fi  
 
 cd $1
 
@@ -28,6 +28,6 @@ echo "$(tput setaf 5)Converting linked binaries to hexadecimal for EEPROM..."
 avr-objcopy -O ihex -R .eeprom main main.hex
 
 echo "$(tput setaf 6)Flashing microcontroller...$(tput setaf 7)"
-avrdude -F -V -c arduino -p ATMEGA328P -P /dev/cu.usbserial-$2 -b 115200 -U flash:w:main.hex
+avrdude -F -V -c arduino -p ATMEGA328P -P /dev/$(ls /dev | grep "cu.usbserial") -b 115200 -U flash:w:main.hex
 
 echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo
