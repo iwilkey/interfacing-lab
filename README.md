@@ -4,7 +4,7 @@ This is a private repository for the Bradley University Electronic Interfacing L
 
 __Maintainer: Ian Wilkey (iwilkey)__
 
-## Flashing the Microcontroller...
+## Flashing a Microcontroller
 
 * Make sure the microcontroller is plugged in via USB to host device.
 * Open a terminal at repo head (../ECE-322/).
