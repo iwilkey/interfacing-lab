@@ -3,11 +3,11 @@
 /// @brief This embedded C program operates to satisfy the requirements of ECE 322 Lab 7.
 /// @authors Ian Wilkey, Andrew Kamp, Rachel Gottschalk
 /// @date 10/25/2022
+///
+/// @attention >>> NOTE FOR GRADER <<<
+/// @attention This is a complete refactoring of Dr. Mali's libraries, 
+/// @attention but all functionality is kept.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// >>> NOTE FOR GRADER <<<
-// This is a complete refactoring of Dr. Mali's libraries, 
-// but all functionality is kept.
 
 #ifndef _ECE_322_LAB_7_SOLUTION_C_
 #define _ECE_322_LAB_7_SOLUTION_C_
@@ -16,6 +16,7 @@
 #include <util/delay.h>
 #include <util/twi.h>
 #include <stdbool.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,158 +25,135 @@
 #define xtal 16000000L
 
 // LCD library header...
-#ifndef _LCD_LIB_
-#define _LCD_LIB_
-#define DATA_BUS PORTC
-#define COMMAND_BUS PORTB
-#define LCD_RS 0 // PORT B0
-#define LCD_RW 1 // PORT B1
-#define LCD_E 2 // PORT B2
-// A refactoring of Dr. Mali's enumeration for selecting the nibble data type...
-typedef enum { 
-    LCD_COMMAND_REGISTER = 0, 
-    LCD_DATA_REGISTER = 1
-} lcdRegister_t;
-// LCD Prototypes. As you can see, all of Mali's required functionality is present.
-void lcdPutNibble(lcdRegister_t reg, uint8_t data);
-uint8_t lcdGetDataNibble(void);
-void lcdInit(void);
-void lcdPutChar(char chr);
-void lcdPutString(const char * string);
-void lcdPutCommand(uint8_t command);
-void lcdClear(void);
-void lcdHome(void);
-void lcdCursor(bool verdict);
-void lcdSetCursorXY(uint8_t x, uint8_t y);
-void lcdWait(void);
-#endif
+#ifndef _LCD_LIB_H_
+#define _LCD_LIB_H_
+
+    #define DATA_BUS PORTC
+    #define COMMAND_BUS PORTB
+    #define LCD_RS 0 // PORT B0
+    #define LCD_RW 1 // PORT B1
+    #define LCD_E 2 // PORT B2
+
+        typedef enum { 
+            LCD_COMMAND_REGISTER = 0, 
+            LCD_DATA_REGISTER = 1
+        } lcdRegister_t;
+
+        void lcdPutNibble(lcdRegister_t reg, uint8_t data);
+        uint8_t lcdGetDataNibble(void);
+        void lcdInit(void);
+        void lcdPutChar(char chr);
+        void lcdPutString(const char * string);
+        void lcdPutCommand(uint8_t command);
+        void lcdClear(void);
+        void lcdHome(void);
+        void lcdCursor(bool verdict);
+        void lcdSetCursorXY(uint8_t x, uint8_t y);
+        void lcdWait(void);
+
+#endif // _LCD_LIB_H_
 
 // UART library header...
-#ifndef _UART_LIB_
-#define _UART_LIB_
-#ifndef _SER_BOUD_
-#define _SER_BOUD_
-#define UART_BPS_2400 2400
-#define UART_BPS_4800 4800
-#define UART_BPS_9600 9600
-#define UART_BPS_19200 19200
-#define UART_BPS_38400 38400
-#define UART_BPS_57600 57600
-#define UART_BPS_115200 115200
-#endif
-#ifndef _SER_STOP_
-#define _SER_STOP_
-#define UART_STOP_ONE 0
-#define UART_STOP_TWO 1
-#endif
-#ifndef _SER_PARITY_
-#define _SER_PARITY_
-#define UART_PARITY_NONE 0
-#define UART_PARITY_EVEN 2
-#define UART_PARITY_ODD 3
-#endif
-void uart0_initialize(uint16_t baud);
-void uart0_initialize3(uint16_t baud, uint8_t uart_stop_mode, uint8_t uart_parity_mode);
-void uart0_shutdown();
-uint8_t uart0_ready_TX();
-void uart0_putc(char c);
-void uart0_puts(const char* const s);
-uint8_t uart0_ready_RX();
-char uart0_getc();
-char uart0_getc_echo();
-uint8_t uart0_check_error();
-size_t uart0_gets(char* s, size_t size);
-size_t uart0_gets_echo(char* s, size_t size);
-size_t uart0_gets_edit(char* s, size_t size);
-size_t uart0_read(void* s, size_t size);
-size_t uart0_write(const void* const s, size_t size);
-#endif
+#ifndef _UART_LIB_H_
+#define _UART_LIB_H_
 
-// MPU library...
-#ifndef LIB_MPU6050_H_
-#define LIB_MPU6050_H_
-typedef struct {
-    float x;
-    float y;
-    float z;
-} mpu_data_t;
-void mpu_init(void);
-void mpu_get_accel(mpu_data_t* mpu_data);
-#endif
-#define MPU6050_ADDR 0x68
-#define ACCEL_XOUT_H 0x3B
-#define ACCEL_XOUT_L 0x3C
-#define ACCEL_YOUT_H 0x3D
-#define ACCEL_YOUT_L 0x3E
-#define ACCEL_ZOUT_H 0x3F
-#define ACCEL_ZOUT_L 0x40
-#define PWR_MGMT_1 0x6B
+    #define UART_BPS_2400 2400
+    #define UART_BPS_4800 4800
+    #define UART_BPS_9600 9600
+    #define UART_BPS_19200 19200
+    #define UART_BPS_38400 38400
+    #define UART_BPS_57600 57600
+    #define UART_BPS_115200 115200
+    #define UART_STOP_ONE 0
+    #define UART_STOP_TWO 1
+    #define UART_PARITY_NONE 0
+    #define UART_PARITY_EVEN 2
+    #define UART_PARITY_ODD 3
+
+        void uart0_initialize(uint16_t baud);
+        void uart0_initialize3(uint16_t baud, uint8_t uart_stop_mode, uint8_t uart_parity_mode);
+        void uart0_shutdown();
+        uint8_t uart0_ready_TX();
+        void uart0_putc(char c);
+        void uart0_puts(const char * const s);
+        uint8_t uart0_ready_RX();
+        char uart0_getc();
+        char uart0_getc_echo();
+        uint8_t uart0_check_error();
+        size_t uart0_gets(char * s, size_t size);
+        size_t uart0_gets_echo(char * s, size_t size);
+        size_t uart0_gets_edit(char * s, size_t size);
+        size_t uart0_read(void * s, size_t size);
+        size_t uart0_write(const void * const s, size_t size);
+
+#endif // _UART_LIB_H_
+
+// MPU library header...
+#ifndef _MPU6050_LIB_H_
+#define _MPU6050_LIB_H_
+
+    #define MPU6050_ADDR 0x68
+    #define ACCEL_XOUT_H 0x3B
+    #define ACCEL_XOUT_L 0x3C
+    #define ACCEL_YOUT_H 0x3D
+    #define ACCEL_YOUT_L 0x3E
+    #define ACCEL_ZOUT_H 0x3F
+    #define ACCEL_ZOUT_L 0x40
+    #define PWR_MGMT_1 0x6B
+
+        typedef struct {
+            float x;
+            float y;
+            float z;
+        } mpu_data_t;
+
+        void mpu_init(void);
+        void mpu_get_accel(mpu_data_t * mpu_data);
+
+#endif // _MPU6050_LIB_H_
 
 // TWI library...
-#ifndef BIOS_TWI_MASTER_H_
-#define BIOS_TWI_MASTER_H_
-#define DEBUG_LOG 0
-#define SUCCESS	0
-#define TW_SCL_PIN PORTC5
-#define TW_SDA_PIN PORTC4
-#define TW_SLA_W(ADDR) ((ADDR << 1) | TW_WRITE)
-#define TW_SLA_R(ADDR) ((ADDR << 1) | TW_READ)
-#define TW_READ_ACK 1
-#define TW_READ_NACK 0
-typedef uint16_t ret_code_t;
-typedef enum {
-    TW_FREQ_100K,
-    TW_FREQ_250K,
-    TW_FREQ_400K
-} twi_freq_mode_t;
-void tw_init(twi_freq_mode_t twi_freq, bool pullup_en);
-ret_code_t tw_master_transmit(uint8_t slave_addr, uint8_t* p_data, uint8_t len, bool repeat_start);
-ret_code_t  tw_master_receive(uint8_t slave_addr, uint8_t* p_data, uint8_t len);
-#endif
+#ifndef _TWI_LIB_H_
+#define _TWI_LIB_H_
 
-// ADC Prototypes...
-#ifndef _ADC_LIB_
-#define _ADC_LIB_
-void adcInit(void);
-void adcSelectChannel(uint8_t channel);
-uint8_t adcGet8b(void);
-uint16_t adcGet10b(void);
-#endif
+    #define DEBUG_LOG 0
+    #define SUCCESS	0
+    #define TW_SCL_PIN PORTC5
+    #define TW_SDA_PIN PORTC4
+    #define TW_SLA_W(ADDR) ((ADDR << 1) | TW_WRITE)
+    #define TW_SLA_R(ADDR) ((ADDR << 1) | TW_READ)
+    #define TW_READ_ACK 1
+    #define TW_READ_NACK 0
+
+        typedef uint16_t ret_code_t;
+        typedef enum {
+            TW_FREQ_100K,
+            TW_FREQ_250K,
+            TW_FREQ_400K
+        } twi_freq_mode_t;
+
+        void tw_init(twi_freq_mode_t twi_freq, bool pullup_en);
+        ret_code_t tw_master_transmit(uint8_t slave_addr, uint8_t * p_data, uint8_t len, bool repeat_start);
+        ret_code_t  tw_master_receive(uint8_t slave_addr, uint8_t * p_data, uint8_t len);
+
+#endif // _TWI_LIB_H_
 
 // Various utilities
-char * u16bts(uint16_t num, char buffer[]);
+#ifndef _UTILS_LIB_H_
+#define _UTILS_LIB_H_
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// ADC Implementation...
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void adcInit(void) {
-    // Set ADC clock to 125kHz...
-    ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); 
-    // For now let us use the very 1st channel!
-    ADMUX = 0;
-    // Use VCC as Vref...
-    ADMUX |= (1 << REFS0);
-    // Left justify the result so that 8bits can be read from the high register...
-    ADMUX |= (1 << ADLAR);
-    // Start ADC...
-    ADCSRA |= (1 << ADEN);
-}
+    #define STRING_BUFFER_SIZE 256
+    #define NUMBER_CONVERSION_BUFFER_SIZE 64
 
-void adcSelectChannel(uint8_t channel) {
-    ADMUX = (ADMUX & 0xE0) | (0x1F & channel);
-}
+        char FLOAT_BUFFER[NUMBER_CONVERSION_BUFFER_SIZE] = { '-' },
+            SCREEN_BUFFER[STRING_BUFFER_SIZE] = { '-' };
+        const char SCREEN_BUFFER_RESET[STRING_BUFFER_SIZE] = { '-' };
 
-uint8_t adcGet8b(void) {
-    ADCSRA |= (1 << ADSC);
-    while(!(ADCSRA & (1 << ADIF)));
-    return ADCH;
-}
+        char * numberToString(double number, int precision);
+        void clearBuffer(void);
+        void addToScreenBuffer(char * add);
 
-uint16_t adcGet10b(void) {
-    ADCSRA |= (1 << ADSC);
-    while(!(ADCSRA & (1 << ADIF)));
-    return ADC;
-}
+#endif // _UTILS_LIB_H_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// UART Implementation...
@@ -200,7 +178,7 @@ void uart0_shutdown(void) {
     UCSR0B = 0;
 }
 
-uint8_t uart0_ready_TX (void) {
+uint8_t uart0_ready_TX(void) {
     return 0 != (UCSR0A & 1<<UDRE0);
 }
 
@@ -209,7 +187,7 @@ void uart0_putc(char c) {
     UDR0 = c;
 }
 
-void uart0_puts (const char * const s) {
+void uart0_puts(const char * const s) {
     for(const char * p = s; *p != '\0'; ++p)
         uart0_putc(*p);
 }
@@ -248,7 +226,7 @@ size_t uart0_gets_echo(char * s, size_t size) {
             break;
         } else {
             if(count < size) {
-                *s++ = c; // *s=c; ++s;
+                *s++ = c;
                 ++count;
                 uart0_putc(c);
             } else {
@@ -301,9 +279,7 @@ size_t uart0_gets_edit(char * s, size_t size) {
                     *s++ = c;
                     ++count;
                     uart0_putc(c);
-                } else {
-                    uart0_putc('\a');
-                }
+                } else uart0_putc('\a');
                 break;
         }
     }
@@ -365,69 +341,32 @@ void mpu_get_accel(mpu_data_t* mpu_data) {
 /// TWI Implementation...
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static ret_code_t tw_start(void) {
-    #if DEBUG_LOG
-        printf(BG "Send START condition..." RESET);
-    #endif
 	TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTA);
 	while(!(TWCR & (1 << TWINT)));
-	if(TW_STATUS != TW_START && TW_STATUS != TW_REP_START) {
-        #if DEBUG_LOG
-            printf("\n");
-        #endif
-            return TW_STATUS;
-	}
-    #if DEBUG_LOG
-        printf("SUCCESS\n");
-    #endif
+	if(TW_STATUS != TW_START && TW_STATUS != TW_REP_START)
+        return TW_STATUS;
 	return SUCCESS;
 }
 
 static void tw_stop(void) {
-	/* Send STOP condition */
-    #if DEBUG_LOG
-        puts(BG "Send STOP condition." RESET);
-    #endif
 	TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO);
 }
 
 static ret_code_t tw_write_sla(uint8_t sla) {
-	/* Transmit slave address with read/write flag */
-    #if DEBUG_LOG
-        printf(BG "Write SLA + R/W: 0x%02X..." RESET, sla);
-    #endif
 	TWDR = sla;
 	TWCR = (1 << TWINT) | (1 << TWEN);
 	while(!(TWCR & (1 << TWINT)));
-	if(TW_STATUS != TW_MT_SLA_ACK && TW_STATUS != TW_MR_SLA_ACK) {
-        #if DEBUG_LOG
-                printf("\n");
-        #endif
+	if(TW_STATUS != TW_MT_SLA_ACK && TW_STATUS != TW_MR_SLA_ACK)
 		return TW_STATUS;
-	}
-    #if DEBUG_LOG
-        printf("SUCCESS\n");
-    #endif
-        return SUCCESS;
+    return SUCCESS;
 }
 
 static ret_code_t tw_write(uint8_t data) {
-	/* Transmit 1 byte*/
-    #if DEBUG_LOG
-        printf(BG "Write data byte: 0x%02X..." RESET, data);
-    #endif
 	TWDR = data;
 	TWCR = (1 << TWINT) | (1 << TWEN);
-	/* Wait for TWINT flag to set */
 	while(!(TWCR & (1 << TWINT)));
-	if (TW_STATUS != TW_MT_DATA_ACK) {
-        #if DEBUG_LOG
-                printf("\n");
-        #endif
+	if(TW_STATUS != TW_MT_DATA_ACK)
 		return TW_STATUS;
-	}
-    #if DEBUG_LOG
-        printf("SUCCESS\n");
-    #endif
 	return SUCCESS;
 }
 
@@ -435,37 +374,23 @@ static uint8_t tw_read(bool read_ack) {
 	if(read_ack) {
 		TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWEA);
 		while(!(TWCR & (1 << TWINT)));
-		if(TW_STATUS != TW_MR_DATA_ACK) {
+		if(TW_STATUS != TW_MR_DATA_ACK)
 			return TW_STATUS;
-		}
-	}
-	else {
+	} else {
 		TWCR = (1 << TWINT) | (1 << TWEN);
-		while (!(TWCR & (1 << TWINT)));
-		if (TW_STATUS != TW_MR_DATA_NACK)
-		{
-			return TW_STATUS;
-		}
+		while(!(TWCR & (1 << TWINT)));
+		if(TW_STATUS != TW_MR_DATA_NACK) 
+            return TW_STATUS;
 	}
 	uint8_t data = TWDR;
-    #if DEBUG_LOG
-        printf(BG "Read data byte: 0x%02X\n" RESET, data);
-    #endif
 	return data;
 }
 
 void tw_init(twi_freq_mode_t twi_freq_mode, bool pullup_en)
 {
 	DDRC |= (1 << TW_SDA_PIN) | (1 << TW_SCL_PIN);
-	if(pullup_en) {
-        #if DEBUG_LOG
-            puts(BG "Enable pull-up resistor." RESET);
-        #endif
-            PORTC |= (1 << TW_SDA_PIN) | (1 << TW_SCL_PIN);
-    }
-	else {
-		PORTC &= ~((1 << TW_SDA_PIN) | (1 << TW_SCL_PIN));
-	}
+	if(pullup_en) PORTC |= (1 << TW_SDA_PIN) | (1 << TW_SCL_PIN);
+	else PORTC &= ~((1 << TW_SDA_PIN) | (1 << TW_SCL_PIN));
 	DDRC &= ~((1 << TW_SDA_PIN) | (1 << TW_SCL_PIN));
 	switch(twi_freq_mode) {
 		case TW_FREQ_100K:
@@ -483,46 +408,32 @@ void tw_init(twi_freq_mode_t twi_freq_mode, bool pullup_en)
 
 ret_code_t tw_master_transmit(uint8_t slave_addr, uint8_t* p_data, uint8_t len, bool repeat_start) {
 	ret_code_t error_code;
-	/* Send START condition */
 	error_code = tw_start();
-	if (error_code != SUCCESS) {
+	if(error_code != SUCCESS)
 		return error_code;
-	}
-
-	/* Send slave address with WRITE flag */
 	error_code = tw_write_sla(TW_SLA_W(slave_addr));
-	if (error_code != SUCCESS) {
+	if(error_code != SUCCESS)
 		return error_code;
-	}
-
-	/* Send data byte in single or burst mode */
 	for(int i = 0; i < len; ++i) {
 		error_code = tw_write(p_data[i]);
-		if(error_code != SUCCESS) {
+		if(error_code != SUCCESS)
 			return error_code;
-		}
 	}
-	if(!repeat_start) {
+	if(!repeat_start)
 		tw_stop();
-	}
 	return SUCCESS;
 }
 
 ret_code_t tw_master_receive(uint8_t slave_addr, uint8_t* p_data, uint8_t len) {
 	ret_code_t error_code;
 	error_code = tw_start();
-	if(error_code != SUCCESS) {
+	if(error_code != SUCCESS)
 		return error_code;
-	}
-	/* Write slave address with READ flag */
 	error_code = tw_write_sla(TW_SLA_R(slave_addr));
-	if(error_code != SUCCESS) {
+	if(error_code != SUCCESS)
 		return error_code;
-	}
-	/* Read single or multiple data byte and send ack */
-	for(int i = 0; i < len - 1; ++i) {
+	for(int i = 0; i < len - 1; ++i)
 		p_data[i] = tw_read(TW_READ_ACK);
-	}
 	p_data[len - 1] = tw_read(TW_READ_NACK);
 	tw_stop();
 	return SUCCESS;
@@ -679,42 +590,51 @@ void lcdInit(void) {
     lcdHome();
 }
 
-char * u16bts(uint16_t num, char buffer[]) {
-    for(int i = 4; i >= 0; i--) {
-        buffer[i] = (num % 10) + '0';
-        num /= 10;
-    }
-    // Get rid of leading zeros...
-    for(int i = 0; i <= 4; i++) {
-        if(buffer[i] != '0') break;
-        buffer[i] = '-';
-    }
-    return buffer;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Utilities implementation...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+char * numberToString(double number, int precision) {
+    return dtostrf(number, 1, precision, FLOAT_BUFFER);
+}
+
+inline void clearBuffer(void) {
+    strcpy(SCREEN_BUFFER, SCREEN_BUFFER_RESET);
+}
+
+inline void addToScreenBuffer(char * add) {
+    strcat(SCREEN_BUFFER, add);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Entry point...
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void) {
-    adcInit();
-    // adcSelectChannel(4);
+
     lcdInit();
     uart0_initialize(9600);
     tw_init(TW_FREQ_400K, true);
     mpu_init();
     mpu_data_t accel;
+
     while(true) {
-        char buffer[15]; // make sure it is big enough!
+        lcdClear();
 		mpu_get_accel(&accel);
-        dtostrf(accel.x, 8, 2, buffer);
-        uart0_puts(buffer);
-        dtostrf(accel.y, 8, 2, buffer);
-        uart0_puts(buffer);
-        dtostrf(accel.z, 8, 2, buffer);
-        uart0_puts(buffer);
-        uart0_puts("\r\n");
-		_delay_ms(200);
+
+        clearBuffer();
+        addToScreenBuffer("x:");
+        addToScreenBuffer(numberToString(accel.x, 1));
+        addToScreenBuffer(" y:");
+        addToScreenBuffer(numberToString(accel.y, 1));
+        lcdPutString(SCREEN_BUFFER);
+        clearBuffer();
+        lcdSetCursorXY(1, 2);
+        addToScreenBuffer("z:");
+        addToScreenBuffer(numberToString(accel.z, 1));
+        lcdPutString(SCREEN_BUFFER);
+
+		_delay_ms(100);
     }
+
     return 0;
 }
 
