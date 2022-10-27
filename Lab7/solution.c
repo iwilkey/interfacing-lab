@@ -112,7 +112,7 @@
 
 #endif // _MPU6050_LIB_H_
 
-// TWI library...
+// TWI library header...
 #ifndef _TWI_LIB_H_
 #define _TWI_LIB_H_
 
@@ -134,9 +134,42 @@
 
         void tw_init(twi_freq_mode_t twi_freq, bool pullup_en);
         ret_code_t tw_master_transmit(uint8_t slave_addr, uint8_t * p_data, uint8_t len, bool repeat_start);
-        ret_code_t  tw_master_receive(uint8_t slave_addr, uint8_t * p_data, uint8_t len);
+        ret_code_t tw_master_receive(uint8_t slave_addr, uint8_t * p_data, uint8_t len);
 
 #endif // _TWI_LIB_H_
+
+// BMP library header...
+#ifndef _BMP280_LIB_H_
+#define _BMP280_LIB_H_
+
+    #define BMP280_ADDR 0x76
+    #define BMP280_REGISTER_DIG24B 0x88
+    #define BMP280_REGISTER_CHIPID 0xD0
+    #define BMP280_REGISTER_VERSION 0xD1
+    #define BMP280_REGISTER_SOFTRESET 0xE0
+    #define BMP280_REGISTER_CAL26B 0xE1
+    #define BMP280_REGISTER_STATUS 0xF3
+    #define BMP280_REGISTER_CONTROL 0xF4
+    #define BMP280_REGISTER_CONFIG 0xF5
+    #define BMP280_REGISTER_DATA8B 0xF7
+    #define BMP280_REGISTER_PRESSUREDATA 0xF7
+    #define BMP280_REGISTER_TEMPDATA 0xFA
+
+        static unsigned int dig_T1;
+        static int dig_T2, dig_T3;
+        static unsigned int dig_P1;
+        static int dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
+
+        typedef struct {
+            float cTemp,
+                fTemp,
+                pressure;
+        } bmp_data_t;
+
+        void bmp_init(void);
+        void bmp_get_data(bmp_data_t * bmp_data);
+
+#endif // _BMP280_LIB_H_
 
 // Various utilities
 #ifndef _UTILS_LIB_H_
@@ -387,8 +420,7 @@ static uint8_t tw_read(bool read_ack) {
 	return data;
 }
 
-void tw_init(twi_freq_mode_t twi_freq_mode, bool pullup_en)
-{
+void tw_init(twi_freq_mode_t twi_freq_mode, bool pullup_en) {
 	DDRC |= (1 << TW_SDA_PIN) | (1 << TW_SCL_PIN);
 	if(pullup_en) PORTC |= (1 << TW_SDA_PIN) | (1 << TW_SCL_PIN);
 	else PORTC &= ~((1 << TW_SDA_PIN) | (1 << TW_SCL_PIN));
@@ -438,6 +470,71 @@ ret_code_t tw_master_receive(uint8_t slave_addr, uint8_t* p_data, uint8_t len) {
 	p_data[len - 1] = tw_read(TW_READ_NACK);
 	tw_stop();
 	return SUCCESS;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// BMP280 Implementation...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void bmp_init(void) {
+    ret_code_t error_code;
+    uint8_t data[24] = { 0 };
+
+    data[0] = BMP280_REGISTER_DIG24B;
+    error_code = tw_master_transmit(BMP280_ADDR, data, 1, true);
+    error_code = tw_master_receive(BMP280_ADDR, data, 24);
+
+    dig_T1 = data[1] * 256 + data[0];
+    dig_T2 = data[3] * 256 + data[2];
+    dig_T3 = data[5] * 256 + data[4];
+
+    dig_P1 = data[7] * 256 + data[6];
+    dig_P2 = data[9] * 256 + data[8];
+    dig_P3 = data[11] * 256 + data[10];
+    dig_P4 = data[13] * 256 + data[12];
+    dig_P5 = data[15] * 256 + data[14];
+    dig_P6 = data[17] * 256 + data[16];
+    dig_P7 = data[19] * 256 + data[18];
+    dig_P8 = data[21] * 256 + data[20];
+    dig_P9 = data[23] * 256 + data[22];
+
+    uint8_t config[2] = {0};
+    config[0] = BMP280_REGISTER_CONTROL;
+    config[1] = 0x27;
+    error_code = tw_master_transmit(BMP280_ADDR, config, 2, true);
+
+    config[0] = BMP280_REGISTER_CONFIG;
+    config[1] = 0xA0;
+    error_code = tw_master_transmit(BMP280_ADDR, config, 2, true);
+}
+
+void bmp_get_data(bmp_data_t * bmp_data) {
+    ret_code_t error_code;
+    uint8_t data[8];
+
+    data[0] = BMP280_REGISTER_DATA8B;
+    error_code = tw_master_transmit(BMP280_ADDR, data, 1, true);
+    error_code = tw_master_receive(BMP280_ADDR, data, 8);
+
+    long int adc_p = (((long int)data[0] * 65536) + ((long int)data[1] * 256) + (long int)(data[2] & 0xF0)) / 16;
+    long int adc_t = (((long int)data[3] * 65536) + ((long int)data[4] * 256) + (long int)(data[5] & 0xF0)) / 16;
+
+    float var1 = (((float)adc_t) / 16384.0F - ((float)dig_T1) / 1024.0F) * ((float)dig_T2);
+    float var2 = ((((float)adc_t) / 131072.0F - ((float)dig_T1) / 8192.0F) *(((float)adc_t)/131072.0F - ((float)dig_T1)/8192.0F)) * ((float)dig_T3);
+    float t_fine = (long int)(var1 + var2);
+    bmp_data->cTemp = (var1 + var2) / 5120.0F;
+    bmp_data->fTemp = bmp_data->cTemp * 1.8F + 32.0F;
+
+    var1 = ((float)t_fine / 2.0F) - 64000.0;
+    var2 = var1 * var1 * ((float)dig_P6) / 32768.0F;
+    var2 = var2 + var1 * ((float)dig_P5) * 2.0F;
+    var2 = (var2 / 4.0F) + (((float)dig_P4) * 65536.0F);
+    var1 = (((float) dig_P3) * var1 * var1 / 524288.0F + ((float) dig_P2) * var1) / 524288.0F;
+    var1 = (1.0F + var1 / 32768.0F) * ((float)dig_P1);
+    float p = 1048576.0 - (float)adc_p;
+    p = (p - (var2 / 4096.0F)) * 6250.0F / var1;
+    var1 = ((float) dig_P9) * p * p / 2147483648.0F;
+    var2 = p * ((float) dig_P8) / 32768.0F;
+    bmp_data->pressure = (p + (var1 + var2 + ((float)dig_P7)) / 16.0F) / 100.0F;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -634,13 +731,10 @@ void levelSimulation(void) {
     while(true) {
         lcdClear();
         mpu_get_accel(&accel);
-
-        // Calibrate y-axis...
         if(calibration) {
             lcdPutString("Calibrating...");
             lcdSetCursorXY(1, 2);
             lcdPutString("Please lay flat");
-            //  Collect average y-axis value...
             centerAxisSum += accel.y;
             axisMeasurements++;
             calibrationTimer++;
@@ -652,7 +746,6 @@ void levelSimulation(void) {
             }
             goto nextFrame;
         }
-
         // Leveler simulation...
         accel.y -= centerAxis; // Try and make the accel y truly zero by subtracting the noise calculated in the calibration.
         float percentage = accel.y / ACCELERATION_DUE_TO_GRAVITY,
@@ -676,20 +769,49 @@ void levelSimulation(void) {
             lcdPutString(numberToString(theta, 0));
             lcdPutString(" deg!");
         }
-
         nextFrame:;
-		_delay_ms((uint16_t)(1000 / FPS));
+		_delay_ms((uint16_t)(1000 / LEVELER_FPS));
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Entry point...
+/// BMP weather station simulation...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define WEATHER_STATION_FPS 1
+#define PRESSURE_TOLERANCE 0.03f
+static float lastFramePressure = 0.0f,
+    thisFramePressure = 0.0f;
+void weatherStationSimulation(void) {
+    lcdCursor(false);
+    bmp_init();
+    bmp_data_t readings;
+    while(true) {
+        lcdClear();
+        bmp_get_data(&readings);
+        lcdPutString(numberToString(readings.pressure, 2));
+        lcdPutString(" hPa");
+        lcdSetCursorXY(1, 2);
+        if(readings.pressure > 1004.0f) {
+            lcdPutString("Rainy :( ");
+            goto nextWeatherFrame;
+        }
+        lcdPutString("Sunny :) ");
+        nextWeatherFrame:;
+        lcdPutString(numberToString(readings.fTemp, 0));
+        lcdPutString(" deg");
+		_delay_ms((uint16_t)(1000 / WEATHER_STATION_FPS));
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Entry point... 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void) {
     lcdInit();
     uart0_initialize(9600);
     tw_init(TW_FREQ_400K, true);
-    levelSimulation();
+    // levelSimulation();
+    weatherStationSimulation();
     return 0;
 }
 
