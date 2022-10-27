@@ -277,7 +277,8 @@ size_t uart0_gets (char * s, size_t size) {
     --size;
     while(true) {
         c = uart0_getc_echo();
-        if(c == '\n' || c == '\r' || count >= size) break;
+        if(c == '\n' || c == '\r' || count >= size) 
+            break;
         *s++ = c;
         ++count;
     }
