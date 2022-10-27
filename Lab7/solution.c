@@ -778,7 +778,6 @@ void levelSimulation(void) {
 /// BMP weather station simulation...
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define WEATHER_STATION_FPS 1
-#define PRESSURE_TOLERANCE 0.03f
 static float lastFramePressure = 0.0f,
     thisFramePressure = 0.0f;
 void weatherStationSimulation(void) {
