@@ -150,8 +150,9 @@
         const char SCREEN_BUFFER_RESET[STRING_BUFFER_SIZE] = { '-' };
 
         char * numberToString(double number, int precision);
-        void clearBuffer(void);
+        void clearScreenBuffer(void);
         void addToScreenBuffer(char * add);
+        void serialLog(char * tag, char * string);
 
 #endif // _UTILS_LIB_H_
 
@@ -597,7 +598,7 @@ char * numberToString(double number, int precision) {
     return dtostrf(number, 1, precision, FLOAT_BUFFER);
 }
 
-inline void clearBuffer(void) {
+inline void clearScreenBuffer(void) {
     strcpy(SCREEN_BUFFER, SCREEN_BUFFER_RESET);
 }
 
@@ -605,36 +606,90 @@ inline void addToScreenBuffer(char * add) {
     strcat(SCREEN_BUFFER, add);
 }
 
+inline void serialLog(char * tag, char * string) {
+    uart0_puts(tag);
+    uart0_puts(": ");
+    uart0_puts(string);
+    uart0_puts("\r\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Leveler simulation...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define LEVELER_FPS 7
+#define CALIBRATION_TIME_SECONDS 5
+#define ACCELERATION_DUE_TO_GRAVITY 9.799
+#define DEAD_ZONE_MARGIN 0.15
+void levelSimulation(void) {
+    lcdCursor(false);
+    mpu_init();
+    mpu_data_t accel;
+
+    bool calibration = true;
+    uint16_t calibrationTimer = 0;
+
+    double centerAxisSum = 0.0f;
+    unsigned axisMeasurements = 0;
+    float centerAxis;
+    while(true) {
+        lcdClear();
+        mpu_get_accel(&accel);
+
+        // Calibrate y-axis...
+        if(calibration) {
+            lcdPutString("Calibrating...");
+            lcdSetCursorXY(1, 2);
+            lcdPutString("Please lay flat");
+            //  Collect average y-axis value...
+            centerAxisSum += accel.y;
+            axisMeasurements++;
+            calibrationTimer++;
+            if(calibrationTimer >= CALIBRATION_TIME_SECONDS * LEVELER_FPS) {
+                centerAxis = centerAxisSum / axisMeasurements;
+                serialLog("Average axis calibration result", numberToString(centerAxis, 2));
+                calibration = false;
+                calibrationTimer = 0;
+            }
+            goto nextFrame;
+        }
+
+        // Leveler simulation...
+        accel.y -= centerAxis; // Try and make the accel y truly zero by subtracting the noise calculated in the calibration.
+        float percentage = accel.y / ACCELERATION_DUE_TO_GRAVITY,
+            theta = percentage * 90.0f,
+            fullPercentage = fmax(0.0f, (-accel.y + ACCELERATION_DUE_TO_GRAVITY) / (ACCELERATION_DUE_TO_GRAVITY * 2));
+        int bubbleState = (uint8_t)(15 * fullPercentage);
+        for(int i = 0; i < 15; i++) {
+            if(i == bubbleState) {
+                lcdPutString("00");
+                i++;
+                continue;
+            }
+            lcdPutChar(' ');
+        }
+        lcdSetCursorXY(1, 2);
+        if(accel.y >= -DEAD_ZONE_MARGIN && accel.y <= DEAD_ZONE_MARGIN) 
+            lcdPutString("Level! (0 deg)");
+        else {
+            lcdPutString("Tilted ");
+            if(accel.y < -DEAD_ZONE_MARGIN) lcdPutChar('-');
+            lcdPutString(numberToString(theta, 0));
+            lcdPutString(" deg!");
+        }
+
+        nextFrame:;
+		_delay_ms((uint16_t)(1000 / FPS));
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Entry point...
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void) {
-
     lcdInit();
     uart0_initialize(9600);
     tw_init(TW_FREQ_400K, true);
-    mpu_init();
-    mpu_data_t accel;
-
-    while(true) {
-        lcdClear();
-		mpu_get_accel(&accel);
-
-        clearBuffer();
-        addToScreenBuffer("x:");
-        addToScreenBuffer(numberToString(accel.x, 1));
-        addToScreenBuffer(" y:");
-        addToScreenBuffer(numberToString(accel.y, 1));
-        lcdPutString(SCREEN_BUFFER);
-        clearBuffer();
-        lcdSetCursorXY(1, 2);
-        addToScreenBuffer("z:");
-        addToScreenBuffer(numberToString(accel.z, 1));
-        lcdPutString(SCREEN_BUFFER);
-
-		_delay_ms(100);
-    }
-
+    levelSimulation();
     return 0;
 }
 
