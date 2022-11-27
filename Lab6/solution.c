@@ -261,7 +261,7 @@ int main(void) {
     static char numBuffer[5] = { '-' };
     while(true) {
         lcdClear();
-        lcdPutString(u16bts(adcGet10b(), numBuffer));
+        // lcdPutString(u16bts(adcGet10b(), numBuffer));
         _delay_ms(25);
     }
     return 0;
