@@ -18,17 +18,7 @@
 #ifndef _UTIL_LIB_H_
 #define _UTIL_LIB_H_
 
-    #define min(x, y) ((x < y) ? x : y)
-
     char * u16bts(uint16_t num, char buffer[]);
-    void findPeaks(int32_t * pn_locs, int32_t * n_npks,  int32_t  * pn_x, 
-        int32_t n_size, int32_t n_min_height, int32_t n_min_distance, int32_t n_max_num);
-    void peaksAboveMinHeight(int32_t * pn_locs, int32_t * n_npks,  int32_t  * pn_x, 
-        int32_t n_size, int32_t n_min_height);
-    void removeClosePeaks(int32_t * pn_locs, int32_t * pn_npks, int32_t * pn_x, 
-        int32_t n_min_distance);
-    void sortAscend(int32_t * pn_x, int32_t n_size);
-    void sortDecend(int32_t * pn_x, int32_t * pn_indx, int32_t n_size);
 
 #endif // _UTIL_LIB_H_
 
@@ -110,38 +100,12 @@
     #define REG_REV_ID 0xFE
     #define REG_PART_ID 0xFF
 
-     // Sampling frequency...
-    #define FS 25
-    #define BUFFER_SIZE (FS * 4)
-    #define MA4_SIZE 4
-
-        // uch_spo2_table is approximated as -45.060 * ratioAverage * ratioAverage + 30.354 * ratioAverage + 94.845...
-        const uint8_t uch_spo2_table[184]={ 95, 95, 95, 96, 96, 96, 97, 97, 97, 97, 97, 98, 98, 98, 98, 98, 99, 99, 99, 99, 
-            99, 99, 99, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-            100, 100, 100, 100, 99, 99, 99, 99, 99, 99, 99, 99, 98, 98, 98, 98, 98, 98, 97, 97, 
-            97, 97, 96, 96, 96, 96, 95, 95, 95, 94, 94, 94, 93, 93, 93, 92, 92, 92, 91, 91, 
-            90, 90, 89, 89, 89, 88, 88, 87, 87, 86, 86, 85, 85, 84, 84, 83, 82, 82, 81, 81, 
-            80, 80, 79, 78, 78, 77, 76, 76, 75, 74, 74, 73, 72, 72, 71, 70, 69, 69, 68, 67, 
-            66, 66, 65, 64, 63, 62, 62, 61, 60, 59, 58, 57, 56, 56, 55, 54, 53, 52, 51, 50, 
-            49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 31, 30, 29, 
-            28, 27, 26, 25, 23, 22, 21, 20, 19, 17, 16, 15, 14, 12, 11, 10, 9, 7, 6, 5, 
-            3, 2, 1 };
-
-        // IR buffer...
-        static int32_t an_x[BUFFER_SIZE];
-        // RED buffer...
-        static int32_t an_y[BUFFER_SIZE];
-
         // TWI methods...
         void maxInit(void);
         void maxReadFifo(uint16_t * red, uint16_t * ir);
         void maxWriteRegister(uint8_t toAddr, uint8_t data);
         void maxReadRegister(uint8_t fromAddr, uint8_t * intoData);
         void maxReset(void);
-
-        // Application methods...
-        void maxGetHeartRateAndSpO2(uint16_t * irBuf, int32_t irBufLength, uint16_t * redBuf, 
-            int32_t * spo2, int8_t * spo2Valid, int32_t * heartRate, int8_t * heartRateValid);
         
 #endif // _MAX30102_LIB_H_
 
@@ -238,150 +202,6 @@ void maxReadRegister(uint8_t fromAddr, uint8_t * intoData) {
 
 void maxReset(void) {
     maxWriteRegister(REG_MODE_CONFIG, 0x40);
-}
-
-void maxGetHeartRateAndSpO2(uint16_t * irBuf, int32_t irBufLength, uint16_t * redBuf, 
-    int32_t * spo2, int8_t * spo2Valid, int32_t * heartRate, int8_t * heartRateValid) {
-
-    uint32_t un_ir_mean, un_only_once;
-    int32_t k, n_i_ratio_count;
-    int32_t i, s, m, n_exact_ir_valley_locs_count, n_middle_idx;
-    int32_t n_th1, n_npks, n_c_min;   
-    int32_t an_ir_valley_locs[15];
-    int32_t n_peak_interval_sum;
-
-    int32_t n_y_ac, n_x_ac;
-    int32_t n_spo2_calc; 
-    int32_t n_y_dc_max, n_x_dc_max; 
-    int32_t n_y_dc_max_idx, n_x_dc_max_idx; 
-    int32_t an_ratio[5], n_ratio_average; 
-    int32_t n_nume, n_denom ;
-
-    // Calculate DC mean and subtract DC from ir...
-    un_ir_mean = 0; 
-    for(k = 0; k < irBufLength; k++) 
-        un_ir_mean += irBuf[k];
-    un_ir_mean = un_ir_mean / irBufLength;
-
-    // Remove DC and invert signal so that we can use peak detector as valley detector...
-    for(k = 0; k < irBufLength; k++)  
-        an_x[k] = -1 * (irBuf[k] - un_ir_mean); 
-
-    // 4 pt Moving Average...
-    for(k = 0; k < BUFFER_SIZE-MA4_SIZE; k++)
-        an_x[k] = (an_x[k] + an_x[k + 1] + an_x[k + 2] + an_x[k + 3]) / (int)4;        
-    
-    // Calculate threshold  
-    n_th1 = 0; 
-    for(k = 0; k < BUFFER_SIZE; k++)
-        n_th1 +=  an_x[k];
-    
-    n_th1 = n_th1 / (BUFFER_SIZE);
-
-    // Min allowed...
-    if(n_th1 < 30) n_th1 = 30;
-    // Max allowed...
-    if(n_th1 > 60) n_th1 = 60; // max allowed
-
-    for(k = 0; k < 15; k++) 
-        an_ir_valley_locs[k] = 0;
-    // Since we flipped signal, we use peak detector as valley detector
-    // Peak_height, peak_distance, max_num_peaks...
-    findPeaks(an_ir_valley_locs, &n_npks, an_x, BUFFER_SIZE, n_th1, 4, 15);
-    n_peak_interval_sum =0;
-    if(n_npks >= 2) {
-        for(k = 1; k < n_npks; k++) 
-            n_peak_interval_sum += (an_ir_valley_locs[k] - an_ir_valley_locs[k - 1]);
-        n_peak_interval_sum = n_peak_interval_sum / (n_npks - 1);
-        *heartRate = (int32_t)((FS * 60) / n_peak_interval_sum);
-        *heartRateValid  = 1;
-    } else { 
-        // unable to calculate because # of peaks are too small
-        *heartRate = -999;
-        *heartRateValid = 0;
-    }
-
-    //  load raw value again for SPO2 calculation : RED(=y) and IR(=X)
-    for(k = 0; k < irBufLength; k++) {
-        an_x[k] = irBuf[k]; 
-        an_y[k] = redBuf[k]; 
-    }
-
-    // Find precise min near an_ir_valley_locs...
-    n_exact_ir_valley_locs_count = n_npks;
-
-    // Using exact_ir_valley_locs, find ir-red DC andir-red AC for SPO2 calibration an_ratio
-    // finding AC/DC maximum of raw...
-    n_ratio_average = 0; 
-    n_i_ratio_count = 0; 
-    for(k = 0; k < 5; k++) 
-        an_ratio[k] = 0;
-    for(k = 0; k < n_exact_ir_valley_locs_count; k++) {
-        if(an_ir_valley_locs[k] > BUFFER_SIZE) {
-            // Do not use SPO2 since valley loc is out of range...
-            *spo2 = -999;
-            *spo2Valid = 0; 
-            return;
-        }
-    }
-    // find max between two valley locations 
-    // and use an_ratio betwen AC compoent of Ir & Red and DC compoent of Ir & Red for SPO2 
-    for(k = 0; k < n_exact_ir_valley_locs_count - 1; k++) {
-
-        n_y_dc_max= -16777216; 
-        n_x_dc_max= -16777216; 
-
-        if(an_ir_valley_locs[k + 1] - an_ir_valley_locs[k] > 3) {
-            for(i = an_ir_valley_locs[k]; i < an_ir_valley_locs[k + 1]; i++) {
-                if(an_x[i] > n_x_dc_max) {
-                    n_x_dc_max =an_x[i]; 
-                    n_x_dc_max_idx=i;
-                }
-                if(an_y[i] > n_y_dc_max) {
-                    n_y_dc_max = an_y[i]; 
-                    n_y_dc_max_idx = i;
-                }
-            }
-            // Red...
-            n_y_ac = (an_y[an_ir_valley_locs[k + 1]] - an_y[an_ir_valley_locs[k]]) * (n_y_dc_max_idx - an_ir_valley_locs[k]);
-            n_y_ac = an_y[an_ir_valley_locs[k]] + n_y_ac / (an_ir_valley_locs[k + 1] - an_ir_valley_locs[k]); 
-            // Subracting linear DC compoenents from raw...
-            n_y_ac = an_y[n_y_dc_max_idx] - n_y_ac;
-            // IR...
-            n_x_ac = (an_x[an_ir_valley_locs[k + 1]] - an_x[an_ir_valley_locs[k]]) * (n_x_dc_max_idx - an_ir_valley_locs[k]);
-            n_x_ac = an_x[an_ir_valley_locs[k]] + n_x_ac / (an_ir_valley_locs[k + 1] - an_ir_valley_locs[k]);
-            // Subracting linear DC compoenents from raw...
-            n_x_ac = an_x[n_y_dc_max_idx] - n_x_ac;
-            // Prepare X100 to preserve floating value...
-            n_nume = (n_y_ac * n_x_dc_max) >> 7;
-            n_denom = (n_x_ac * n_y_dc_max) >> 7;
-            if(n_denom>0  && n_i_ratio_count <5 &&  n_nume != 0) {   
-                // Formula is (n_y_ac * n_x_dc_max) / (n_x_ac * n_y_dc_max)...
-                an_ratio[n_i_ratio_count] = (n_nume * 100) / n_denom;
-                n_i_ratio_count++;
-            }
-        }
-    }
-
-    // Choose median value since PPG signal may varies from beat to beat...
-    sortAscend(an_ratio, n_i_ratio_count);
-    n_middle_idx = n_i_ratio_count / 2;
-
-    // Use median?
-    if(n_middle_idx > 1) n_ratio_average = (an_ratio[n_middle_idx - 1] + an_ratio[n_middle_idx]) / 2;
-    else n_ratio_average = an_ratio[n_middle_idx];
-
-    if(n_ratio_average > 2 && n_ratio_average < 184){
-        n_spo2_calc = uch_spo2_table[n_ratio_average];
-        *spo2 = n_spo2_calc;
-        // float SPO2 = -45.060 * n_ratio_average * n_ratio_average / 10000 + 30.354 * n_ratio_average / 100 + 94.845...
-        *spo2Valid = 1;
-    } else {
-        // Do not use SPO2 since signal an_ratio is out of range
-        *spo2 = -999;
-        *spo2Valid = 0; 
-    }
-
 }
 
 #endif // _MAX30102_LIB_C_
@@ -609,86 +429,11 @@ char * u16bts(uint16_t num, char buffer[]) {
     }
     // Get rid of leading zeros...
     for(int i = 0; i <= 4; i++) {
-        if(buffer[i] != '0') break;
+        if(buffer[i] != '0') 
+            break;
         buffer[i] = '-';
     }
     return buffer;
-}
-
-void findPeaks(int32_t * pn_locs, int32_t * n_npks,  int32_t  * pn_x, 
-    int32_t n_size, int32_t n_min_height, int32_t n_min_distance, int32_t n_max_num) {
-    peaksAboveMinHeight(pn_locs, n_npks, pn_x, n_size, n_min_height);
-    removeClosePeaks(pn_locs, n_npks, pn_x, n_min_distance);
-    *n_npks = min(*n_npks, n_max_num);
-}
-
-void peaksAboveMinHeight(int32_t * pn_locs, int32_t * n_npks,  int32_t  * pn_x, 
-    int32_t n_size, int32_t n_min_height) {
-    int32_t i = 1, n_width;
-    *n_npks = 0;
-    while(i < n_size - 1) {
-        if(pn_x[i] > n_min_height && pn_x[i] > pn_x[i-1]) {
-            // Find left edge of potential peaks...
-            n_width = 1;
-            // Find flat peaks...
-            while(i + n_width < n_size && pn_x[i] == pn_x[i + n_width])
-                n_width++;
-            // Find right edge of peaks...
-            if(pn_x[i] > pn_x[i + n_width] && (*n_npks) < 15) {
-                pn_locs[(*n_npks)++] = i;    
-                // For flat peaks, peak location is left edge...
-                i += n_width + 1;
-            } else 
-                i += n_width;
-        } else 
-            i++;
-    }
-}
-
-void removeClosePeaks(int32_t * pn_locs, int32_t * pn_npks, int32_t * pn_x, 
-    int32_t n_min_distance) {
-    int32_t i, j, n_old_npks, n_dist;
-    
-    // Order peaks from large to small...
-    sortDecend(pn_x, pn_locs, *pn_npks);
-
-    for(i = -1; i < *pn_npks; i++) {
-        n_old_npks = *pn_npks;
-        *pn_npks = i + 1;
-        for(j = i + 1; j < n_old_npks; j++) {
-            // Lag-zero peak of autocorr is at index -1...
-            n_dist = pn_locs[j] - (i == -1 ? -1 : pn_locs[i]);
-            if(n_dist > n_min_distance || n_dist < -n_min_distance)
-                pn_locs[(*pn_npks)++] = pn_locs[j];
-        }
-    }
-
-    // Resort indices int32_to ascending order...
-    sortAscend(pn_locs, *pn_npks);
-}
-
-void sortAscend(int32_t * pn_x, int32_t n_size) {
-    int32_t i, j, n_temp;
-
-    for(i = 1; i < n_size; i++) {
-        n_temp = pn_x[i];
-        for(j = i; j > 0 && n_temp < pn_x[j - 1]; j--)
-            pn_x[j] = pn_x[j - 1];
-        pn_x[j] = n_temp;
-    }
-
-}
-
-void sortDecend(int32_t * pn_x, int32_t * pn_indx, int32_t n_size) {
-    int32_t i, j, n_temp;
-
-    for(i = 1; i < n_size; i++) {
-        n_temp = pn_indx[i];
-        for(j = i; j > 0 && pn_x[n_temp] > pn_x[pn_indx[j - 1]]; j--)
-            pn_indx[j] = pn_indx[j - 1];
-        pn_indx[j] = n_temp;
-    }
-
 }
 
 #endif // _UTIL_LIB_C_
@@ -696,28 +441,35 @@ void sortDecend(int32_t * pn_x, int32_t * pn_indx, int32_t n_size) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Application...
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void init(void) {
     twiInit();
-    maxReset();
+    DDRD |= 0b10000000;
+    PORTD &= ~(0b10000000);
     maxInit();
     lcdInit();
 }
 
+char nb[16] = { '-' };
 int main(void) {
     init();
     uint16_t red, ir;
     char numBuffer[16] = { '-' };
     while(true) {
         lcdClear();
+        while(((PIND & 0b10000000) >> 7));
         maxReadFifo(&red, &ir);
-        lcdPutString(u16bts(ir, numBuffer));
-        _delay_ms(100);
+        lcdPutString("Red: ");
+        lcdPutString(u16bts(red, nb));
+        lcdSetCursorXY(1, 2);
+        lcdPutString("IR: ");
+        lcdPutString(u16bts(ir, nb));
+        _delay_ms(50);
     }
     return 0;
 }
 
 #endif // _ECE_322_FINAL_SOLUTION_C_
-
 
 /*
 
