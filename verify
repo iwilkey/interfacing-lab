@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+    echo "$(tput setaf 1)Illegal number of parameters! Usage: $(tput setaf 3)$ ./program.sh [project-directory]$(tput setaf 7)"
+    exit
+fi
+
+if [ ! -f "$1/solution.c" ]; then
+    echo "The specified project's entry point (./[project-dir]/solution.c) could not be found!"
+    exit
+fi  
+
+cd $1
+
+if [ -d "build" ]; then
+    echo && echo "$(tput setaf 1)Removing old ./build directory...$(tput setaf 7)"
+    rm -r build/
+fi
+mkdir build && cd build
+
+echo "$(tput setaf 3)Compiling..."
+avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o main.o ../solution.c
+
+echo "$(tput setaf 4)Linking binary to ATmega328P libraries..."
+avr-gcc -mmcu=atmega328p main.o -o main
+
+echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo

@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @file ECE-322/Final/solution.c
-/// @brief This embedded C program operates to satisfy the requirements of ECE 322 Lab 8 (final project).
+/// @brief This firmware operates to satisfy the requirements of ECE 322 Lab 8 (final project).
 /// @authors Ian Wilkey, Andrew Kamp, Rachel Gottschalk
 /// @date 11/27/2022
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,14 @@
 #include <avr/io.h>
 #include <stdbool.h>
 #include <util/delay.h>
+
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ///       FIRMWARE SECTION       ///
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Utilities header...
@@ -100,12 +108,21 @@
     #define REG_REV_ID 0xFE
     #define REG_PART_ID 0xFF
 
+        // Data type that holds sample data from the red LED and the ir LED...
+        struct maxSample_t {
+            uint16_t red;
+            uint16_t ir;
+        };
+
         // TWI methods...
         void maxInit(void);
         void maxReadFifo(uint16_t * red, uint16_t * ir);
         void maxWriteRegister(uint8_t toAddr, uint8_t data);
         void maxReadRegister(uint8_t fromAddr, uint8_t * intoData);
         void maxReset(void);
+
+        // Application methods...
+        struct maxSample_t maxSample(void);
         
 #endif // _MAX30102_LIB_H_
 
@@ -204,6 +221,19 @@ void maxReset(void) {
     maxWriteRegister(REG_MODE_CONFIG, 0x40);
 }
 
+struct maxSample_t maxSample(void) {
+    uint16_t redDat;
+    uint16_t irDat;
+    // Wait for the MAX's INT pin to assert...
+    while(((PIND & 0b10000000) >> 7)); // TODO: Might not need to shift, right? Cause 0 is 0.
+    // Take a sample and save it to the sample data type...
+    maxReadFifo(&redDat, &irDat);
+    struct maxSample_t ret;
+    ret.red = redDat;
+    ret.ir = irDat;
+    return ret;
+}
+
 #endif // _MAX30102_LIB_C_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,9 +308,9 @@ uint8_t lcdGetDataNibble(void) {
     // Place the lower nibble in variable without disturbing upper nibble...
     out |= (PINC & 0x0f);
     COMMAND_BUS &= ~(1 << LCD_E);
-    // Wait tHD2 >=10ns (1us is OK)...
+    // Wait tHD2 >= 10ns (1us is OK)...
     _delay_us(1);
-    // Wait tHD1 >=10ns (1us is OK)...
+    // Wait tHD1 >= 10ns (1us is OK)...
     COMMAND_BUS &= ~(1 << LCD_RW);
     _delay_us(1);
 
@@ -438,55 +468,62 @@ char * u16bts(uint16_t num, char buffer[]) {
 
 #endif // _UTIL_LIB_C_
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Application...
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ///       SOFTWARE SECTION       ///
+    ////////////////////////////////////
+    ////////////////////////////////////
+    ////////////////////////////////////
+
+#ifndef _ECE_322_FINAL_SOFTWARE_C_
+#define _ECE_322_FINAL_SOFTWARE_C_
 
 void init(void) {
     twiInit();
+    // Set up MAX's INT pin as input on D7...
     DDRD |= 0b10000000;
     PORTD &= ~(0b10000000);
     maxInit();
     lcdInit();
 }
 
-char nb[16] = { '-' };
 int main(void) {
     init();
-    uint16_t red, ir;
-    char numBuffer[16] = { '-' };
+
+    struct maxSample_t sample;
     while(true) {
         lcdClear();
-        while(((PIND & 0b10000000) >> 7));
-        maxReadFifo(&red, &ir);
-        lcdPutString("Red: ");
-        lcdPutString(u16bts(red, nb));
-        lcdSetCursorXY(1, 2);
-        lcdPutString("IR: ");
-        lcdPutString(u16bts(ir, nb));
+        sample = maxSample();
+
+        // Do stuff with the sample...
+        // Ex. sample.ir = ir data value from sample...
+
         _delay_ms(50);
     }
+
     return 0;
 }
 
+#endif // _ECE_322_FINAL_SOFTWARE_C_
 #endif // _ECE_322_FINAL_SOLUTION_C_
 
 /*
 
 ==========================================
     Reference connections...
-
     LCD:
         RS -> B0
         RW -> B1
         E -> B2
         D4 -> C0
-        ...
+            ...
         D7 -> C3
 
     MAX:
         SDA (Breadboard C3) -> SDA (Uno)
         SCL (Breadboard C2) -> SCL (Uno)
+        INT (Breadboard I1) -> D7
 ==========================================
 
 */
