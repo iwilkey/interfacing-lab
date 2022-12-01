@@ -11,6 +11,14 @@
 #include <avr/io.h>
 #include <stdbool.h>
 #include <util/delay.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#define xtal 16000000L
 
     ////////////////////////////////////
     ////////////////////////////////////
@@ -19,6 +27,196 @@
     ////////////////////////////////////
     ////////////////////////////////////
     ////////////////////////////////////
+
+// UART library header...
+#ifndef _UART_LIB_H_
+#define _UART_LIB_H_
+
+    #define UART_BPS_2400 2400
+    #define UART_BPS_4800 4800
+    #define UART_BPS_9600 9600
+    #define UART_BPS_19200 19200
+    #define UART_BPS_38400 38400
+    #define UART_BPS_57600 57600
+    #define UART_BPS_115200 115200
+    #define UART_STOP_ONE 0
+    #define UART_STOP_TWO 1
+    #define UART_PARITY_NONE 0
+    #define UART_PARITY_EVEN 2
+    #define UART_PARITY_ODD 3
+
+        void uart0_initialize(uint16_t baud);
+        void uart0_initialize3(uint16_t baud, uint8_t uart_stop_mode, uint8_t uart_parity_mode);
+        void uart0_shutdown();
+        uint8_t uart0_ready_TX();
+        void uart0_putc(char c);
+        void uart0_puts(const char * const s);
+        uint8_t uart0_ready_RX();
+        char uart0_getc();
+        char uart0_getc_echo();
+        uint8_t uart0_check_error();
+        size_t uart0_gets(char * s, size_t size);
+        size_t uart0_gets_echo(char * s, size_t size);
+        size_t uart0_gets_edit(char * s, size_t size);
+        size_t uart0_read(void * s, size_t size);
+        size_t uart0_write(const void * const s, size_t size);
+
+#endif // _UART_LIB_H_
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// UART Implementation...
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void uart0_initialize(uint16_t baud) {
+    uint32_t temp = (xtal / 16) / baud - 1;
+    UBRR0H = (temp >> 8) & 0x0F;
+    UBRR0L = (temp & 0xFF);
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+    UCSR0C = (3 << UCSZ00) | (1 << USBS0);
+}
+
+void uart0_initialize3(uint16_t baud, uint8_t uart_stop_mode, uint8_t uart_parity_mode) {
+    uint32_t temp = xtal / 16 / baud - 1;
+    UBRR0H = (temp >> 8) & 0x0F;
+    UBRR0L = (temp & 0xFF);
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+    UCSR0C = (3 << UCSZ00) | (1 << USBS0);
+}
+
+void uart0_shutdown(void) {
+    UCSR0B = 0;
+}
+
+uint8_t uart0_ready_TX(void) {
+    return 0 != (UCSR0A & 1<<UDRE0);
+}
+
+void uart0_putc(char c) {
+    while(0 == (UCSR0A & 1 << UDRE0));
+    UDR0 = c;
+}
+
+void uart0_puts(const char * const s) {
+    for(const char * p = s; *p != '\0'; ++p)
+        uart0_putc(*p);
+}
+
+uint8_t uart0_ready_RX(void) {
+    return 0 != (UCSR0A & 1 << RXC0);
+}
+
+char uart0_getc(void) {
+    while(0 == (UCSR0A & 1 << RXC0));
+    return (uint8_t)UDR0;
+}
+
+char uart0_getc_echo(void) {
+   char c = uart0_getc();
+   uart0_putc(c);
+   return c;
+}
+
+uint8_t uart0_check_error(void) {
+    return UCSR0A & ((1 << FE0) | (1 << DOR0) | (1 << UPE0));
+}
+
+size_t uart0_gets_echo(char * s, size_t size) {
+    char c;
+    size_t count = 0;
+    --size;
+    while(true) {
+        c = uart0_getc();
+        if(c == '\b' || c == 127) {
+            uart0_putc('\a');
+        } else if(c == '\n' || c == '\r') {
+            uart0_putc('\r');
+            uart0_putc('\n');
+            *s = 0;
+            break;
+        } else {
+            if(count < size) {
+                *s++ = c;
+                ++count;
+                uart0_putc(c);
+            } else {
+                uart0_putc('\a');
+            }
+        }
+    }
+    return count;
+}
+
+size_t uart0_gets (char * s, size_t size) {
+    char c;
+    size_t count = 0;
+    --size;
+    while(true) {
+        c = uart0_getc_echo();
+        if(c == '\n' || c == '\r' || count >= size) 
+            break;
+        *s++ = c;
+        ++count;
+    }
+    *s = 0;
+    return count;
+}
+
+size_t uart0_gets_edit(char * s, size_t size) {
+    char c;
+    size_t count = 0;
+    --size;
+    while(true) {
+        c = uart0_getc();
+        switch(c) {
+            case '\b':
+            case 127:
+                if(count) {
+                    uart0_putc('\b');
+                    uart0_putc(' ');
+                    uart0_putc('\b');
+                    --s;
+                    --count;
+                }
+                break;
+            case '\n':
+            case '\r':
+                uart0_putc('\r');
+                uart0_putc('\n');
+                *s = 0;
+                return count;
+                default:
+                if(count < size) {
+                    *s++ = c;
+                    ++count;
+                    uart0_putc(c);
+                } else uart0_putc('\a');
+                break;
+        }
+    }
+    return count;
+}
+
+size_t uart0_write(const void * const s, size_t size) {
+    const uint8_t * p = s;
+    size_t i = 0;
+    while(i < size) {
+        uart0_putc(*p);
+        ++p;
+        ++i;
+    }
+    return i;
+}
+
+size_t uart0_read(void * s, size_t size) {
+    uint8_t * p = s;
+    char c;
+    size_t count = 0;
+    while(count < size) {
+        c = uart0_getc();
+        *p++ = c;
+        ++count;
+    }
+    return count;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Utilities header...
@@ -107,6 +305,7 @@
     #define REG_PROX_INT_THRESH 0x30
     #define REG_REV_ID 0xFE
     #define REG_PART_ID 0xFF
+    #define SAMPLE_PACKET_SIZE 50
 
         // Data type that holds sample data from the red LED and the ir LED...
         struct maxSample_t {
@@ -122,7 +321,7 @@
         void maxReset(void);
 
         // Application methods...
-        struct maxSample_t maxSample(void);
+        void maxConvertData(uint16_t * irBuffer, uint16_t * redBuffer, int32_t * dataOut);
         
 #endif // _MAX30102_LIB_H_
 
@@ -221,17 +420,27 @@ void maxReset(void) {
     maxWriteRegister(REG_MODE_CONFIG, 0x40);
 }
 
-struct maxSample_t maxSample(void) {
-    uint16_t redDat;
-    uint16_t irDat;
-    // Wait for the MAX's INT pin to assert...
-    while(((PIND & 0b10000000) >> 7)); // TODO: Might not need to shift, right? Cause 0 is 0.
-    // Take a sample and save it to the sample data type...
-    maxReadFifo(&redDat, &irDat);
-    struct maxSample_t ret;
-    ret.red = redDat;
-    ret.ir = irDat;
-    return ret;
+void maxConvertData(uint16_t * irBuffer, uint16_t * redBuffer, int32_t * dataOut) {
+    // Calculate DC mean...
+    uint32_t irMean = 0;
+    for(int i = 0; i < SAMPLE_PACKET_SIZE; i++) 
+        irMean += irBuffer[i];
+    irMean /= SAMPLE_PACKET_SIZE;
+    // Invert...
+    for(int i = 0; i < SAMPLE_PACKET_SIZE; i++)
+        dataOut[i] = -1 * (irBuffer[i] - irMean);
+    int npoint = 16;
+    // Perform n-pt moving average...
+    for(int i = 0; i < SAMPLE_PACKET_SIZE; i++) {
+        int indArr[npoint];
+        for(int j = 0; j < npoint; j++)
+            indArr[npoint] = (i + j) % SAMPLE_PACKET_SIZE;
+        int ls = 0;
+        for(int j = 0; j < npoint; j++)
+            ls += irBuffer[indArr[npoint]];
+        ls /= npoint;
+        dataOut[i] = ls;
+    }
 }
 
 #endif // _MAX30102_LIB_C_
@@ -375,7 +584,7 @@ void lcdInit(void) {
     // Set up ports...
     DDRB = 0b00000111;
     PORTB = ~DDRB;
-    DDRC = 0xff;
+    DDRC = 0x0f;
     PORTC = ~DDRC;
     _delay_ms(20);
     // Set LCD to 4-bit mode...
@@ -480,6 +689,7 @@ char * u16bts(uint16_t num, char buffer[]) {
 #define _ECE_322_FINAL_SOFTWARE_C_
 
 void init(void) {
+    uart0_initialize(9600);
     twiInit();
     // Set up MAX's INT pin as input on D7...
     DDRD |= 0b10000000;
@@ -490,18 +700,29 @@ void init(void) {
 
 int main(void) {
     init();
-
-    struct maxSample_t sample;
+    uint16_t irBuffer[SAMPLE_PACKET_SIZE];
+    uint16_t redBuffer[SAMPLE_PACKET_SIZE];
+    int32_t dataOut[SAMPLE_PACKET_SIZE];
+    struct maxSample_t samp;
     while(true) {
         lcdClear();
-        sample = maxSample();
-
-        // Do stuff with the sample...
-        // Ex. sample.ir = ir data value from sample...
-
-        _delay_ms(50);
+        lcdPutString("Hello world!");
+        // Gather SAMPLE_PACKET_SIZE samples, send it to convert data...
+        for(int sample = 0; sample < SAMPLE_PACKET_SIZE; sample++) {
+            while(((PIND & 0b10000000) >> 7));
+            maxReadFifo(&samp.red, &samp.ir);
+            irBuffer[sample] = samp.ir;
+            redBuffer[sample] = samp.red;
+        }
+        maxConvertData(irBuffer, redBuffer, dataOut);
+        char dataPoint[12];
+        for(int i = 0; i < SAMPLE_PACKET_SIZE; i++) {
+            sprintf(dataPoint, "%d", dataOut[i]);
+            uart0_puts(dataPoint);
+            uart0_putc('\n');
+            _delay_ms(10);
+        }
     }
-
     return 0;
 }
 

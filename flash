@@ -28,6 +28,6 @@ echo "$(tput setaf 5)Converting linked binaries to hexadecimal for EEPROM..."
 avr-objcopy -O ihex -R .eeprom main main.hex
 
 echo "$(tput setaf 6)Flashing microcontroller...$(tput setaf 7)"
-avrdude -F -V -c arduino -p ATMEGA328P -P /dev/$(ls /dev | grep "cu.usbmodem") -b 115200 -U flash:w:main.hex
+avrdude -F -V -c arduino -p ATMEGA328P -P /dev/$(ls /dev | grep "cu.usbserial") -b 115200 -U flash:w:main.hex
 
 echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo
