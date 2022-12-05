@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mkdir -p build && cd build
+
+echo "$(tput setaf 3)Compiling..."
+avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o out.o ../src/Application.cpp
+
+echo "$(tput setaf 4)Linking binary to ATmega328P libraries..."
+avr-gcc -mmcu=atmega328p out.o -o out
+
+echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo
