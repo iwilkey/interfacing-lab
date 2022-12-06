@@ -10,7 +10,7 @@ clear all; close all; clc;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Define where the data is being piped into...
-DATA_PATH = "/Users/ianwilkey/Desktop/ECE-322/data.txt";
+DATA_PATH = "/Users/ianwilkey/Desktop/ECE-322/Lab8/SerialDataBuffer";
 
 figure("Name", "ECE 322 Final Project MAX30102 Real-Time Data Graphing");
 while(true)
