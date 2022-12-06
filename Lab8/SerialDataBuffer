@@ -1,0 +1,5 @@
+>> RAW SERIAL DATA PIPED TO HERE <<
+
+SerialDataGrapher.m observes this data buffer in real time and plots it on a graph. This
+makes the MAX30102's filtered data much easier to interpret. If you would like to use this tool,
+simply run the SerialDataGrapher.m in a liscensed MATLAB instance, and use $ ./begin!

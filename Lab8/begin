@@ -1,20 +1,17 @@
 #!/bin/bash
 
 mkdir -p build && cd build
-
 echo "$(tput setaf 3)Compiling..."
 avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o main.o ../src/Application.cpp
-
 echo "$(tput setaf 4)Linking binary to ATmega328P libraries..."
 avr-gcc -mmcu=atmega328p main.o -o main
-
 echo "$(tput setaf 5)Converting linked binaries to hexadecimal for EEPROM..."
 avr-objcopy -O ihex -R .eeprom main main.hex
-
 echo "$(tput setaf 6)Flashing microcontroller...$(tput setaf 7)"
 avrdude -F -V -c arduino -p ATMEGA328P -P /dev/$(ls /dev | grep "cu.usbserial") -b 115200 -U flash:w:main.hex
+echo "$(tput setaf 5)Process completed!$(tput setaf 7)"
 
-echo "$(tput setaf 5)Process completed!$(tput setaf 7)" && echo
-
-# See serial output...
-cat /dev/$(ls /dev | grep "cu.usbserial")
+rm ../SerialDataBuffer
+touch ../SerialDataBuffer
+echo "$(tput setaf 3)Sending data to SerialDataBuffer that can be processed by SerialDataGrapher.m. Please open an instance of MATLAB and run that program...$(tput setaf 7)"
+cat /dev/$(ls /dev | grep "cu.usbserial") > ../SerialDataBuffer

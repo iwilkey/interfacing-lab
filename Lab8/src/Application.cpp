@@ -11,11 +11,15 @@
 
 int main(void) {
 
-    // Use my library objects...
     Serial serial(9600);
     LiquidCrystal1602 lcd;
     I2C twi;
     MAX30102 max(&twi, 100);
+
+    lcd.clear();
+    lcd.print("See data render");
+    lcd.setCursor(1, 2);
+    lcd.print("using SDG...");
 
     int ppgBuf[max.getPPGBufferSize()] = { 0 };
     for(;;) {
